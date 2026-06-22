@@ -4,7 +4,7 @@
 
 This project is an NLP and Retrieval-Augmented Generation based Strategic Intelligence Agent for SAP.
 
-The system collects public SAP-related information, stores it in a knowledge repository, retrieves relevant evidence, and generates CEO-level strategic recommendations. The goal is not only to summarize documents, but to transform collected information into useful business insights supported by evidence.
+The system collects public SAP-related information, stores it in a knowledge repository, retrieves relevant evidence, and generates CEO-level strategic recommendations. The main goal is not only to summarize documents, but to convert collected information into useful business insights supported by evidence.
 
 The system is designed to answer questions such as:
 
@@ -48,6 +48,7 @@ Main focus areas:
 | Vector store          |            ChromaDB |
 | Embedding model       |    all-MiniLM-L6-v2 |
 | Local LLM             | Qwen3:8B via Ollama |
+| Embedding dimension   |                 384 |
 
 ---
 
@@ -87,25 +88,26 @@ flowchart TD
 ## Data Flow Diagram
 
 ```mermaid
-flowchart LR
-    A["Public Sources"] --> B["Collectors"]
-    B --> C["Raw Documents"]
-    C --> D["SQLite Database"]
-    D --> E["Text Preprocessing"]
-    E --> F["Clean Documents"]
-    F --> G["Chunking"]
-    G --> H["Text Chunks"]
-    H --> I["Embedding Model"]
-    I --> J["ChromaDB Vector Store"]
-    K["CEO Question"] --> L["RAG Retriever"]
+flowchart TD
+    A["1. Public SAP Sources"] --> B["2. Data Collectors"]
+    B --> C["3. Raw Documents"]
+    C --> D["4. SQLite Database"]
+    D --> E["5. Text Preprocessing"]
+    E --> F["6. Clean Documents"]
+    F --> G["7. Chunking"]
+    G --> H["8. Text Chunks"]
+    H --> I["9. Embedding Model<br/>all-MiniLM-L6-v2"]
+    I --> J["10. ChromaDB Vector Store"]
+
+    K["11. CEO Question"] --> L["12. RAG Retriever"]
     J --> L
-    L --> M["Retrieved Evidence"]
-    M --> N["Qwen3:8B via Ollama"]
-    N --> O["Strategic Recommendation"]
-    O --> P["Streamlit Dashboard"]
+    L --> M["13. Retrieved Evidence Chunks"]
+    M --> N["14. Local LLM<br/>Qwen3:8B via Ollama"]
+    N --> O["15. Strategic Recommendation"]
+    O --> P["16. Streamlit Dashboard"]
 ```
 
-This data flow shows how public information moves through the system. The collected documents are stored in SQLite, cleaned, chunked, embedded, and indexed in ChromaDB. When a CEO-level question is asked, the retriever selects relevant evidence chunks and passes them to the local LLM to generate an evidence-based recommendation.
+This data flow shows how public SAP-related information moves through the system. First, documents are collected and stored in SQLite. Then the text is cleaned, chunked, converted into embeddings, and indexed in ChromaDB. When a CEO-level question is asked, the RAG retriever selects relevant evidence chunks and passes them to Qwen3:8B through Ollama. The final answer is shown in the Streamlit dashboard with supporting evidence.
 
 ---
 
@@ -144,6 +146,8 @@ Each document stores:
 * published date
 * collected timestamp
 
+SQLite is mainly used for structured storage, metadata, dashboard tables, and human-readable article previews.
+
 ---
 
 ### 3. Preprocessing
@@ -176,6 +180,8 @@ Clean documents are split into smaller chunks using recursive character chunking
 
 Chunking is used because full articles are too long for direct retrieval and LLM prompting. Smaller chunks help the system retrieve more focused evidence.
 
+The overlap is used to avoid losing context between chunk boundaries.
+
 ---
 
 ### 5. Embeddings and Vector Store
@@ -185,6 +191,8 @@ Each chunk is converted into a semantic vector using:
 ```text
 all-MiniLM-L6-v2
 ```
+
+This model creates **384-dimensional embeddings**. Each text chunk becomes a 384-value vector.
 
 The vectors are stored in ChromaDB. ChromaDB is used for semantic search during RAG retrieval.
 
@@ -229,13 +237,54 @@ The system does not use OpenAI, Gemini, Claude, or any paid commercial LLM API a
 | SAP was selected as the company                | SAP has strong public information around Business AI, cloud ERP, Joule, SAP BTP, and enterprise transformation.                   |
 | SQLite was used as the document repository     | It is lightweight, local, easy to inspect, and suitable for an academic prototype.                                                |
 | ChromaDB was used as the vector store          | It supports persistent local semantic search and works well with sentence embeddings.                                             |
-| all-MiniLM-L6-v2 was used for embeddings       | It is lightweight, fast, and suitable for local semantic retrieval.                                                               |
+| all-MiniLM-L6-v2 was used for embeddings       | It is lightweight, fast, free, and suitable for local semantic retrieval.                                                         |
 | Recursive character chunking was used          | It keeps chunks manageable while preserving useful context through overlap.                                                       |
 | RAG was used instead of only prompting the LLM | RAG grounds the answer in collected evidence and reduces unsupported hallucination.                                               |
 | Qwen3:8B through Ollama was used               | It is a freely accessible local LLM and satisfies the requirement of not using paid commercial APIs as the main reasoning engine. |
 | Streamlit was used for the dashboard           | It is simple to build, easy to demonstrate, and suitable for an interactive academic prototype.                                   |
 | VADER was used for sentiment analysis          | It provides a simple rule-based sentiment baseline for article and content tone.                                                  |
 | Evidence IDs were included in the output       | They make the recommendation explainable and allow claims to be traced back to retrieved chunks.                                  |
+| SQLite and ChromaDB were both used             | SQLite handles structured document storage, while ChromaDB handles semantic vector retrieval.                                     |
+
+---
+
+## Scoring Logic
+
+The project uses different scores for different purposes. SQLite and ChromaDB do not have numerical weightage against each other because they serve different roles.
+
+### 1. Quality Score
+
+The quality score is calculated at the document level. It helps estimate whether a collected document is useful enough for the knowledge repository.
+
+It considers factors such as:
+
+* text length
+* SAP relevance
+* full-text availability
+* noisy or rejected text markers
+* useful business/technology content
+
+This score is stored in SQLite and used in dashboard views.
+
+### 2. Similarity / Retrieval Score
+
+The similarity score is produced during semantic retrieval from ChromaDB.
+
+It represents how close the CEO question and retrieved evidence chunk are in embedding space.
+
+Higher retrieval score means the chunk is more semantically relevant to the question.
+
+### 3. Confidence Score
+
+The confidence score shown in opportunity and risk sections is a heuristic confidence indicator. It is mainly based on the quality and strength of the available evidence.
+
+It is not a trained machine learning probability.
+
+### 4. Sentiment Score
+
+The sentiment score is calculated using VADER.
+
+It estimates the tone of the collected article or business signal as positive, neutral, or negative. This is article-tone sentiment, not direct customer or social media sentiment.
 
 ---
 
@@ -274,6 +323,8 @@ Shows:
 * evidence
 * confidence score
 
+The Opportunity Monitor mainly shows document-level evidence from SQLite so that the user can inspect readable article previews and source URLs.
+
 ### 4. Risk Monitor
 
 Shows:
@@ -283,6 +334,8 @@ Shows:
 * severity level
 * evidence
 * confidence score
+
+The Risk Monitor also shows document-level evidence from SQLite for human-readable verification.
 
 ### 5. Sentiment Analysis
 
@@ -302,6 +355,8 @@ Generates CEO-level recommendations with:
 * priority
 * confidence
 
+This section uses embedded chunk-level evidence retrieved from ChromaDB.
+
 ### 7. CEO Briefing
 
 Generates a short executive briefing around three questions:
@@ -309,6 +364,8 @@ Generates a short executive briefing around three questions:
 * What happened?
 * Why does it matter?
 * What should management do next?
+
+This section also uses embedded chunk-level evidence from ChromaDB and displays the source metadata and URL for traceability.
 
 ### 8. Project Pipeline
 
@@ -318,19 +375,21 @@ Shows the high-level system flow from data collection to RAG-based CEO recommend
 
 ## Technology Stack
 
-| Component            | Tool / Library               |
-| -------------------- | ---------------------------- |
-| Programming language | Python                       |
-| Dashboard            | Streamlit                    |
-| Charts               | Plotly                       |
-| Database             | SQLite                       |
-| Vector store         | ChromaDB                     |
-| Embedding model      | all-MiniLM-L6-v2             |
-| LLM                  | Qwen3:8B via Ollama          |
-| RAG logic            | LangChain + custom retrieval |
-| Sentiment analysis   | VADER                        |
-| Text cleaning        | BeautifulSoup, regex         |
-| Data handling        | pandas                       |
+| Component            | Tool / Library       |
+| -------------------- | -------------------- |
+| Programming language | Python               |
+| Dashboard            | Streamlit            |
+| Charts               | Plotly               |
+| Database             | SQLite               |
+| Vector store         | ChromaDB             |
+| Embedding model      | all-MiniLM-L6-v2     |
+| Embedding library    | SentenceTransformers |
+| LLM                  | Qwen3:8B via Ollama  |
+| LLM wrapper          | LangChain Ollama     |
+| RAG logic            | Custom RAG pipeline  |
+| Sentiment analysis   | VADER                |
+| Text cleaning        | BeautifulSoup, regex |
+| Data handling        | pandas               |
 
 ---
 
@@ -376,6 +435,24 @@ sap_ceo_intelligence_agent/
 ├── requirements.txt
 └── .gitignore
 ```
+
+---
+
+## Important Files
+
+| File                                    | Purpose                                                                                                                  |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `src/config.py`                         | Central project configuration such as company name, paths, chunk size, overlap, top-k, embedding model, and Ollama model |
+| `src/database.py`                       | SQLite schema and database helper functions                                                                              |
+| `src/quality_checks.py`                 | Document validation, relevance checking, and quality score logic                                                         |
+| `src/pipeline/preprocess.py`            | Cleans newly collected documents                                                                                         |
+| `src/pipeline/reclean_all_documents.py` | Re-cleans all existing documents if preprocessing logic changes                                                          |
+| `src/pipeline/chunking.py`              | Splits cleaned documents into chunks                                                                                     |
+| `src/pipeline/build_vector_store.py`    | Creates embeddings and stores chunks in ChromaDB                                                                         |
+| `src/rag/retrieval.py`                  | Retrieves semantically relevant chunks from ChromaDB                                                                     |
+| `src/rag/prompts.py`                    | Builds the CEO-level evidence-based prompt                                                                               |
+| `src/rag/rag_chain.py`                  | Main RAG chain for strategic recommendation generation                                                                   |
+| `app.py`                                | Main Streamlit dashboard entry point                                                                                     |
 
 ---
 
@@ -458,6 +535,23 @@ python -m streamlit run app.py --server.fileWatcherType none
 
 ---
 
+## Live Coding Parameters
+
+Some important parameters are centralized in `src/config.py`.
+
+| Parameter              | File                                                       | Rebuild needed?                      |
+| ---------------------- | ---------------------------------------------------------- | ------------------------------------ |
+| `CHUNK_SIZE`           | `src/config.py`                                            | Yes, rerun chunking and vector store |
+| `CHUNK_OVERLAP`        | `src/config.py`                                            | Yes, rerun chunking and vector store |
+| `EMBEDDING_MODEL_NAME` | `src/config.py`                                            | Yes, rebuild vector store            |
+| `TOP_K`                | `src/config.py` and category-wise search in `rag_chain.py` | No vector rebuild                    |
+| `OLLAMA_MODEL_NAME`    | `src/config.py`                                            | No vector rebuild                    |
+| `temperature`          | `src/rag/rag_chain.py`                                     | No vector rebuild                    |
+| `num_ctx`              | `src/rag/rag_chain.py`                                     | No vector rebuild                    |
+| `num_predict`          | `src/rag/rag_chain.py`                                     | No vector rebuild                    |
+
+---
+
 ## Example CEO Question
 
 ```text
@@ -482,22 +576,6 @@ The system includes prompt-level controls to reduce hallucination:
 
 ---
 
-## Requirement Mapping
-
-| Requirement                      | Project Implementation                               | Status    |
-| -------------------------------- | ---------------------------------------------------- | --------- |
-| 100+ documents                   | 239 documents collected                              | Satisfied |
-| 3+ public sources                | 6 sources used                                       | Satisfied |
-| Automatic data collection        | RSS and article extraction collectors                | Satisfied |
-| Knowledge repository             | SQLite and ChromaDB                                  | Satisfied |
-| Clean, deduplicate, embed, index | Preprocessing, chunking, embeddings, vector indexing | Satisfied |
-| Opportunities, risks, trends     | Dashboard intelligence sections                      | Satisfied |
-| CEO recommendations              | RAG + Qwen3:8B recommendation generation             | Satisfied |
-| Evidence-based output            | Evidence IDs, evidence tables, evidence preview      | Satisfied |
-| Executive dashboard              | Streamlit dashboard with required sections           | Satisfied |
-| Free/open-source LLM             | Qwen3:8B through Ollama                              | Satisfied |
-
----
 
 ## Limitations
 
@@ -509,6 +587,7 @@ This is an academic prototype, so it has some limitations:
 * Risk and opportunity labels are based on heuristic logic.
 * Local LLM generation is slower than paid cloud APIs.
 * The system supports strategic analysis, but it is not a financial forecasting model.
+* Generated recommendations still need human review before real business use.
 
 ---
 
