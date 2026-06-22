@@ -438,24 +438,6 @@ sap_ceo_intelligence_agent/
 
 ---
 
-## Important Files
-
-| File                                    | Purpose                                                                                                                  |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `src/config.py`                         | Central project configuration such as company name, paths, chunk size, overlap, top-k, embedding model, and Ollama model |
-| `src/database.py`                       | SQLite schema and database helper functions                                                                              |
-| `src/quality_checks.py`                 | Document validation, relevance checking, and quality score logic                                                         |
-| `src/pipeline/preprocess.py`            | Cleans newly collected documents                                                                                         |
-| `src/pipeline/reclean_all_documents.py` | Re-cleans all existing documents if preprocessing logic changes                                                          |
-| `src/pipeline/chunking.py`              | Splits cleaned documents into chunks                                                                                     |
-| `src/pipeline/build_vector_store.py`    | Creates embeddings and stores chunks in ChromaDB                                                                         |
-| `src/rag/retrieval.py`                  | Retrieves semantically relevant chunks from ChromaDB                                                                     |
-| `src/rag/prompts.py`                    | Builds the CEO-level evidence-based prompt                                                                               |
-| `src/rag/rag_chain.py`                  | Main RAG chain for strategic recommendation generation                                                                   |
-| `app.py`                                | Main Streamlit dashboard entry point                                                                                     |
-
----
-
 ## How to Run
 
 ### 1. Create virtual environment
@@ -532,23 +514,6 @@ python -m src.rag.rag_chain
 ```powershell
 python -m streamlit run app.py --server.fileWatcherType none
 ```
-
----
-
-## Live Coding Parameters
-
-Some important parameters are centralized in `src/config.py`.
-
-| Parameter              | File                                                       | Rebuild needed?                      |
-| ---------------------- | ---------------------------------------------------------- | ------------------------------------ |
-| `CHUNK_SIZE`           | `src/config.py`                                            | Yes, rerun chunking and vector store |
-| `CHUNK_OVERLAP`        | `src/config.py`                                            | Yes, rerun chunking and vector store |
-| `EMBEDDING_MODEL_NAME` | `src/config.py`                                            | Yes, rebuild vector store            |
-| `TOP_K`                | `src/config.py` and category-wise search in `rag_chain.py` | No vector rebuild                    |
-| `OLLAMA_MODEL_NAME`    | `src/config.py`                                            | No vector rebuild                    |
-| `temperature`          | `src/rag/rag_chain.py`                                     | No vector rebuild                    |
-| `num_ctx`              | `src/rag/rag_chain.py`                                     | No vector rebuild                    |
-| `num_predict`          | `src/rag/rag_chain.py`                                     | No vector rebuild                    |
 
 ---
 
