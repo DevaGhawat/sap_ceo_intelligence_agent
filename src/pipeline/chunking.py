@@ -1,4 +1,5 @@
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+# import re
 
 from src.config import CHUNK_SIZE, CHUNK_OVERLAP
 from src.database import (
@@ -30,6 +31,55 @@ def split_document_text(text: str):
             clean_chunks.append(chunk)
 
     return clean_chunks
+
+#word chunking approach 
+
+# def split_document_text(text: str):
+#     words = text.split()
+
+#     clean_chunks = []
+#     start_index = 0
+
+#     while start_index < len(words):
+#         end_index = start_index + CHUNK_SIZE
+#         chunk_words = words[start_index:end_index]
+#         chunk_text = " ".join(chunk_words).strip()
+
+#         if chunk_text:
+#             clean_chunks.append(chunk_text)
+
+#         start_index = end_index - CHUNK_OVERLAP
+
+#         if start_index >= len(words):
+#             break
+
+#     return clean_chunks
+
+#sentence chunking approach
+# def split_document_text(text: str):
+#     sentences = re.split(r'(?<=[.!?])\s+', text)
+
+#     clean_chunks = []
+#     current_chunk = ""
+
+#     for sentence in sentences:
+#         sentence = sentence.strip()
+
+#         if not sentence:
+#             continue
+
+#         if len(current_chunk) + len(sentence) <= CHUNK_SIZE:
+#             current_chunk = (current_chunk + " " + sentence).strip()
+#         else:
+#             if current_chunk:
+#                 clean_chunks.append(current_chunk)
+
+#             current_chunk = sentence
+
+#     if current_chunk:
+#         clean_chunks.append(current_chunk)
+
+#     return clean_chunks
 
 
 def create_chunks_for_document(document):

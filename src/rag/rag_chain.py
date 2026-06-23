@@ -9,7 +9,7 @@ def load_llm():
     llm = OllamaLLM(
         model=OLLAMA_MODEL_NAME,
         temperature=0.0,
-        num_ctx=3072,
+        num_ctx=3072,#4096,#2048,
         num_predict=900,
         num_gpu=0,
     )

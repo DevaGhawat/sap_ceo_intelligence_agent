@@ -20,10 +20,14 @@ INDUSTRY = (
     "enterprise automation, and digital transformation"
 )
 
-EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
+EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2" #"BAAI/bge-small-en-v1.5"
 
 CHUNK_SIZE = 700
 CHUNK_OVERLAP = 120
+
+#for word-based chunking (not used currently)
+# CHUNK_SIZE = 120
+# CHUNK_OVERLAP = 25
 
 TOP_K = 5
 
