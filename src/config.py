@@ -31,9 +31,9 @@ CHUNK_OVERLAP = 120
 
 TOP_K = 5
 
-OLLAMA_MODEL_NAME = "qwen3:8b"       # Better quality, slower, crash risk
+# OLLAMA_MODEL_NAME = "qwen3:8b"       # Better quality, slower, crash risk
 # OLLAMA_MODEL_NAME = "llama3.2:3b"    # Stable backup
-# OLLAMA_MODEL_NAME = "qwen2.5:3b"       # Best balance for final demo
+OLLAMA_MODEL_NAME = "qwen2.5:3b"       # Best balance for final demo
 
 SOURCE_TYPES = [
     "official",

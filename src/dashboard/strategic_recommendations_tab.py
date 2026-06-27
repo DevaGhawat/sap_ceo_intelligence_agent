@@ -14,16 +14,11 @@ def show_strategic_recommendations():
         unsafe_allow_html=True,
     )
 
-    default_question = (
-        "If you were SAP's CEO today, what strategic action should be "
-        "prioritized in Business AI and cloud ERP, and why?"
-    )
-
     question = st.text_area(
         "Ask a strategic CEO-level question",
-        value=default_question,
-        height=110,
-        help="The answer will be grounded in retrieved SAP-related evidence from the vector store.",
+        value="",
+        placeholder="Example: What strategic action should SAP prioritize next and why?",
+        height=120,
     )
 
     run_button = st.button(
