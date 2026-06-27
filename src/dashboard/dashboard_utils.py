@@ -8,7 +8,7 @@ import streamlit as st
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from src.config import COMPANY_NAME, DATABASE_PATH
 from src.database import get_repository_statistics
-from src.rag.rag_chain import generate_ceo_answer
+from src.agent.ceo_agent import run_ceo_agent
 COMPETITOR_TERMS = [
     "oracle",
     "microsoft dynamics",

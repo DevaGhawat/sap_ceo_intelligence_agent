@@ -1,4 +1,5 @@
 from src.dashboard.dashboard_utils import *
+from src.agent.ceo_agent import run_ceo_agent
 
 
 def show_ceo_briefing():
@@ -7,8 +8,9 @@ def show_ceo_briefing():
     st.markdown(
         """
         <div class="section-note">
-        This section creates an executive briefing using retrieved evidence from the knowledge base.
-        The answer should explain what happened, why it matters, and what management should do next.
+        This section uses the CEO Agent to create an executive briefing.
+        The agent plans the task, selects tools, retrieves evidence, analyzes signals,
+        validates the recommendation, and saves the run in memory.
         </div>
         """,
         unsafe_allow_html=True,
@@ -32,8 +34,8 @@ def show_ceo_briefing():
             st.warning("Please enter a CEO briefing question.")
             return
 
-        with st.spinner("Retrieving evidence and generating CEO briefing..."):
-            result = generate_ceo_answer(question)
+        with st.spinner("Running CEO agent: planning, retrieving, analyzing, validating..."):
+            result = run_ceo_agent(question)
 
         answer_text = result.get("answer", "")
         evidence_df = build_evidence_dataframe(result)
@@ -42,6 +44,32 @@ def show_ceo_briefing():
 
         with st.container(border=True):
             st.markdown(answer_text)
+
+        st.markdown("### Agent Execution Trace")
+
+        execution_trace = result.get("execution_trace", [])
+
+        if execution_trace:
+            for item in execution_trace:
+                step = item.get("step", "Step")
+                details = item.get("details", "")
+                st.write(f"**{step}:** {details}")
+        else:
+            st.info("No execution trace returned.")
+
+        st.markdown("### Agent Validation")
+
+        validation = result.get("validation", {})
+
+        if validation.get("passed"):
+            st.success("Validation passed. Briefing is supported by retrieved evidence.")
+        else:
+            st.error("Validation failed. Some checks need attention.")
+
+        checks = validation.get("checks", {})
+
+        if checks:
+            st.json(checks)
 
         if not evidence_df.empty:
             metric_col1, metric_col2, metric_col3 = st.columns(3)
@@ -73,10 +101,5 @@ def show_ceo_briefing():
                 use_container_width=True,
                 height=320,
             )
-
-        st.info(
-            "The briefing is generated from retrieved evidence chunks. "
-            "The final answer should connect opportunity, risk, trend, and evidence before giving a CEO-level recommendation."
-        )
 
         show_evidence_preview(result)
