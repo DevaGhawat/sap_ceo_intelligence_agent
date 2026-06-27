@@ -1,4 +1,5 @@
 from src.dashboard.dashboard_utils import *
+from src.agent.ceo_agent import run_ceo_agent
 
 
 def show_strategic_recommendations():
@@ -7,23 +8,19 @@ def show_strategic_recommendations():
     st.markdown(
         """
         <div class="section-note">
-        This section retrieves strategic evidence from the knowledge base and uses the local Qwen3:8B model
-        to generate CEO-level recommendations with evidence, expected impact, risk, priority, and confidence.
+        This section now uses an agentic workflow. The CEO Agent creates a plan,
+        selects tools, retrieves evidence, analyzes risks/opportunities/trends,
+        generates a recommendation, validates it, and stores the run in memory.
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    default_question = (
-        "If you were SAP's CEO today, what strategic action should be "
-        "prioritized in Business AI and cloud ERP, and why?"
-    )
-
     question = st.text_area(
         "Ask a strategic CEO-level question",
-        value=default_question,
-        height=110,
-        help="The answer will be grounded in retrieved SAP-related evidence from the vector store.",
+        value="",
+        placeholder="Example: What should SAP do next to strengthen its Business AI strategy?",
+        height=120,
     )
 
     run_button = st.button(
@@ -37,16 +34,69 @@ def show_strategic_recommendations():
             st.warning("Please enter a strategic question.")
             return
 
-        with st.spinner("Retrieving evidence and generating strategic recommendations..."):
-            result = generate_ceo_answer(question)
+        with st.spinner("Running CEO agent: planning, retrieving, analyzing, validating..."):
+            result = run_ceo_agent(question)
 
         answer_text = result.get("answer", "")
+        formatted_answer = format_agent_answer_for_markdown(answer_text)
         evidence_df = build_evidence_dataframe(result)
 
         st.markdown("### AI CEO Strategic Recommendations")
 
         with st.container(border=True):
-            st.markdown(answer_text)
+            st.markdown(formatted_answer)
+
+        st.markdown("### Agent Plan")
+
+        agent_plan = result.get("agent_plan", {})
+
+        if agent_plan:
+            st.write(f"**Detected Goal Type:** {agent_plan.get('goal_type', 'N/A')}")
+
+            for step in agent_plan.get("steps", []):
+                st.write(f"- {step}")
+        else:
+            st.info("No agent plan returned.")
+
+        st.markdown("### Tools Used")
+
+        tools_used = result.get("tools_used", [])
+
+        if tools_used:
+            for tool in tools_used:
+                st.write(f"- `{tool}`")
+        else:
+            st.info("No tools were recorded.")
+
+        st.markdown("### Agent Execution Trace")
+
+        execution_trace = result.get("execution_trace", [])
+
+        if execution_trace:
+            for item in execution_trace:
+                step = item.get("step", "Step")
+                details = item.get("details", "")
+                st.write(f"**{step}:** {details}")
+        else:
+            st.info("No execution trace returned.")
+
+        st.markdown("### Agent Validation")
+
+        validation = result.get("validation", {})
+        agent_decision = result.get("agent_decision", "")
+
+        if validation.get("passed"):
+            st.success("Validation passed. Recommendation is supported by retrieved evidence.")
+        else:
+            st.error("Validation failed. Some checks need attention.")
+
+        if agent_decision:
+            st.info(f"Agent Decision: {agent_decision}")
+
+        checks = validation.get("checks", {})
+
+        if checks:
+            st.json(checks)
 
         if not evidence_df.empty:
             metric_col1, metric_col2, metric_col3 = st.columns(3)
