@@ -19,7 +19,7 @@ def show_strategic_recommendations():
     question = st.text_area(
         "Ask a strategic CEO-level question",
         value="",
-        placeholder="Example: What strategic action should SAP prioritize next and why?",
+        placeholder="Example: What should SAP do next to strengthen its Business AI strategy?",
         height=120,
     )
 
@@ -38,12 +38,13 @@ def show_strategic_recommendations():
             result = run_ceo_agent(question)
 
         answer_text = result.get("answer", "")
+        formatted_answer = format_agent_answer_for_markdown(answer_text)
         evidence_df = build_evidence_dataframe(result)
 
         st.markdown("### AI CEO Strategic Recommendations")
 
         with st.container(border=True):
-            st.markdown(answer_text)
+            st.markdown(formatted_answer)
 
         st.markdown("### Agent Plan")
 
@@ -82,11 +83,15 @@ def show_strategic_recommendations():
         st.markdown("### Agent Validation")
 
         validation = result.get("validation", {})
+        agent_decision = result.get("agent_decision", "")
 
         if validation.get("passed"):
             st.success("Validation passed. Recommendation is supported by retrieved evidence.")
         else:
             st.error("Validation failed. Some checks need attention.")
+
+        if agent_decision:
+            st.info(f"Agent Decision: {agent_decision}")
 
         checks = validation.get("checks", {})
 

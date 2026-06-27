@@ -19,7 +19,7 @@ def show_ceo_briefing():
     question = st.text_area(
         "CEO briefing question",
         value="",
-        placeholder="Example: What are the most important recent strategic signals for SAP?",
+        placeholder="Example: What should SAP leadership know about Business AI strategy?",
         height=120,
     )
 
@@ -38,12 +38,35 @@ def show_ceo_briefing():
             result = run_ceo_agent(question)
 
         answer_text = result.get("answer", "")
+        formatted_answer = format_agent_answer_for_markdown(answer_text)
         evidence_df = build_evidence_dataframe(result)
 
         st.markdown("### Executive Briefing")
 
         with st.container(border=True):
-            st.markdown(answer_text)
+            st.markdown(formatted_answer)
+
+        st.markdown("### Agent Plan")
+
+        agent_plan = result.get("agent_plan", {})
+
+        if agent_plan:
+            st.write(f"**Detected Goal Type:** {agent_plan.get('goal_type', 'N/A')}")
+
+            for step in agent_plan.get("steps", []):
+                st.write(f"- {step}")
+        else:
+            st.info("No agent plan returned.")
+
+        st.markdown("### Tools Used")
+
+        tools_used = result.get("tools_used", [])
+
+        if tools_used:
+            for tool in tools_used:
+                st.write(f"- `{tool}`")
+        else:
+            st.info("No tools were recorded.")
 
         st.markdown("### Agent Execution Trace")
 
@@ -60,11 +83,15 @@ def show_ceo_briefing():
         st.markdown("### Agent Validation")
 
         validation = result.get("validation", {})
+        agent_decision = result.get("agent_decision", "")
 
         if validation.get("passed"):
             st.success("Validation passed. Briefing is supported by retrieved evidence.")
         else:
             st.error("Validation failed. Some checks need attention.")
+
+        if agent_decision:
+            st.info(f"Agent Decision: {agent_decision}")
 
         checks = validation.get("checks", {})
 

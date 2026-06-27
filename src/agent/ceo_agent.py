@@ -21,14 +21,16 @@ def run_ceo_agent(goal):
     if not goal.strip():
         return {
             "answer": "No goal was provided.",
+            "evidence": [],
             "evidence_items": [],
             "agent_plan": {},
             "execution_trace": [],
             "validation": {},
+            "agent_decision": "No goal was provided.",
+            "presentation_status": "not_started",
         }
 
     execution_trace = []
-
     recent_memory = load_recent_agent_runs(limit=3)
 
     execution_trace.append(
@@ -94,12 +96,34 @@ def run_ceo_agent(goal):
         }
     )
 
+    if validation["passed"]:
+        agent_decision = "Recommendation approved by agent validation."
+        presentation_status = "approved"
+    else:
+        agent_decision = (
+            "Recommendation was generated, but it was not approved by agent validation. "
+            "The system should review the validation issues before using this recommendation."
+        )
+        presentation_status = "not_approved"
+
+        execution_trace.append(
+            {
+                "step": "Agent decision",
+                "details": (
+                    "Recommendation was not automatically repaired. "
+                    "Validation issues are shown transparently."
+                ),
+            }
+        )
+
     memory_record = {
         "goal": goal,
         "goal_type": plan["goal_type"],
         "tools_used": plan["tools"],
         "evidence_count": len(evidence_items),
         "validation_passed": validation["passed"],
+        "presentation_status": presentation_status,
+        "validation_issues": validation.get("issues", []),
         "answer_preview": answer[:500],
     }
 
@@ -114,13 +138,21 @@ def run_ceo_agent(goal):
 
     return {
         "answer": answer,
+
+        # old dashboard compatibility
+        "evidence": evidence_items,
+
+        # new agent format
         "evidence_items": evidence_items,
+
         "valid_evidence_ids": recommendation_result.get("valid_evidence_ids", ""),
         "agent_goal": goal,
         "agent_plan": plan,
         "tools_used": plan["tools"],
         "analysis_results": analysis_results,
         "validation": validation,
+        "agent_decision": agent_decision,
+        "presentation_status": presentation_status,
         "recent_memory": recent_memory,
         "execution_trace": execution_trace,
     }
@@ -145,6 +177,9 @@ def test_agent():
 
     print("\nValidation")
     print(result.get("validation", {}))
+
+    print("\nAgent Decision")
+    print(result.get("agent_decision", ""))
 
     print("\nFinal Answer")
     print(result.get("answer", ""))

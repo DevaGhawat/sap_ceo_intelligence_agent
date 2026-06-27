@@ -739,39 +739,47 @@ def show_repository_charts():
 def build_evidence_dataframe(result):
     evidence_rows = []
 
-    for item in result["evidence"]:
+    evidence_items = result.get("evidence", result.get("evidence_items", []))
+
+    for item in evidence_items:
         evidence_rows.append(
             {
                 "Evidence ID": f"chunk_{item['chunk_id']}",
-                "Category": item.get("evidence_category", "General"),
-                "Title": item["title"],
-                "Source": item["source_name"],
-                "Source Type": item["source_type"],
-                "Topic": item["topic"],
-                "Final Score": item["final_score"],
-                "URL": item["url"],
+                "Title": item.get("title", ""),
+                "Source": item.get("source_name", ""),
+                "Source Type": item.get("source_type", ""),
+                "Topic": item.get("topic", ""),
+                "Final Score": item.get("final_score", item.get("score", 0)),
+                "URL": item.get("url", ""),
             }
         )
 
-    return pd.DataFrame(evidence_rows)
+    evidence_df = pd.DataFrame(evidence_rows)
+
+    return evidence_df
 
 
 def show_evidence_preview(result):
     st.subheader("Evidence Text Preview")
 
-    for item in result["evidence"]:
-        title = item["title"]
-        chunk_id = item["chunk_id"]
-        category = item.get("evidence_category", "General")
+    evidence_items = result.get("evidence", result.get("evidence_items", []))
 
-        with st.expander(f"chunk_{chunk_id} | {category} | {title}"):
-            st.write(item["text"])
-            st.write("Source:", item["source_name"])
-            st.write("Source Type:", item["source_type"])
-            st.write("URL:", item["url"])
-            
-            
-            
+    for item in evidence_items:
+        title = item.get("title", "")
+        chunk_id = item.get("chunk_id", "")
+        text = item.get("chunk_text", item.get("text", ""))
+        source_name = item.get("source_name", "")
+        source_type = item.get("source_type", "")
+        url = item.get("url", "")
+
+        with st.expander(f"chunk_{chunk_id} | {title}"):
+            st.write(text)
+            st.write(f"Source: {source_name}")
+            st.write(f"Source Type: {source_type}")
+
+            if url:
+                st.markdown(f"URL: {url}")
+                
 def apply_dashboard_style():
     st.markdown(
         """
@@ -857,3 +865,41 @@ def apply_dashboard_style():
         """,
         unsafe_allow_html=True,
     )
+    
+def format_agent_answer_for_markdown(answer):
+    if not answer:
+        return ""
+
+    formatted_answer = answer.strip()
+
+    labels = [
+        "CEO Answer:",
+        "Key Strategic Signals:",
+        "Recommendation 1:",
+        "Recommendation 2:",
+        "Recommendation 3:",
+        "Action:",
+        "Reason:",
+        "Supporting evidence:",
+        "Expected impact:",
+        "Risk:",
+        "Priority:",
+        "Confidence:",
+        "Evidence Limitations:",
+    ]
+
+    for label in labels:
+        formatted_answer = re.sub(
+            rf"\s*{re.escape(label)}",
+            f"\n\n**{label}**",
+            formatted_answer,
+        )
+
+    formatted_answer = formatted_answer.replace("**CEO Answer:**", "## CEO Answer")
+    formatted_answer = formatted_answer.replace("**Key Strategic Signals:**", "### Key Strategic Signals")
+    formatted_answer = formatted_answer.replace("**Recommendation 1:**", "### Recommendation 1")
+    formatted_answer = formatted_answer.replace("**Recommendation 2:**", "### Recommendation 2")
+    formatted_answer = formatted_answer.replace("**Recommendation 3:**", "### Recommendation 3")
+    formatted_answer = formatted_answer.replace("**Evidence Limitations:**", "### Evidence Limitations")
+
+    return formatted_answer.strip()    

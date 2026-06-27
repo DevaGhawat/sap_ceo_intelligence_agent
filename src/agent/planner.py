@@ -1,6 +1,22 @@
 def detect_goal_type(goal):
     goal_lower = goal.lower()
 
+    strategic_words = [
+        "prioritize",
+        "recommend",
+        "recommendation",
+        "strategic action",
+        "what should",
+        "next",
+        "decide",
+        "decision",
+        "management should",
+        "ceo",
+    ]
+
+    if any(word in goal_lower for word in strategic_words):
+        return "strategic_decision"
+
     if any(word in goal_lower for word in ["risk", "threat", "challenge", "problem"]):
         return "risk_analysis"
 
