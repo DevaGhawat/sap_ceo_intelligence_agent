@@ -32,7 +32,7 @@ def main():
         - **Documents:** 239
         - **Sources:** 6
         - **Chunks:** 3398
-        - **LLM:** Qwen3:8B
+        - **LLM:** Qwen2.5:7B
         - **Vector DB:** ChromaDB
         """
     )

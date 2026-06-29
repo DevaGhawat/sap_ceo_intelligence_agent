@@ -6,7 +6,8 @@ def show_project_pipeline():
 
     st.write(
         "This section gives a quick overview of how the system collects information, "
-        "stores it, retrieves evidence, and generates CEO-level recommendations."
+        "stores it, retrieves evidence, and uses a CEO Agent to generate and validate "
+        "CEO-level strategic recommendations."
     )
 
     col1, col2, col3, col4 = st.columns(4)
@@ -21,13 +22,14 @@ def show_project_pipeline():
         st.metric("Chunks", 3398)
 
     with col4:
-        st.metric("LLM", "Qwen3:8B")
+        st.metric("LLM", "Qwen2.5:7B")
 
     st.subheader("Architecture at a Glance")
 
     st.code(
         "Public Sources → SQLite → Preprocessing → Chunking → Embeddings → "
-        "ChromaDB → RAG Retrieval → Qwen3:8B → Streamlit Dashboard",
+        "ChromaDB → CEO Agent → Plan → Tools → Retrieve → Analyze → "
+        "Recommend → Validate → Memory → Streamlit Dashboard",
         language="text",
     )
 
@@ -85,8 +87,8 @@ def show_project_pipeline():
         st.markdown(
             """
             <div class="dashboard-card">
-            <b>5. Retrieval</b><br><br>
-            Searches ChromaDB to retrieve the most relevant evidence chunks for a CEO-level question.
+            <b>5. Evidence Retrieval</b><br><br>
+            Searches ChromaDB to retrieve the most relevant evidence chunks for the CEO Agent.
             </div>
             """,
             unsafe_allow_html=True,
@@ -96,19 +98,29 @@ def show_project_pipeline():
         st.markdown(
             """
             <div class="dashboard-card">
-            <b>6. CEO Recommendation</b><br><br>
-            Uses Qwen3:8B through Ollama to generate evidence-based strategic recommendations.
+            <b>6. CEO Agent Workflow</b><br><br>
+            Plans the task, selects tools, analyzes risks/opportunities/trends, generates a recommendation,
+            validates it, and stores the run in memory.
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-    st.subheader("Why RAG is used")
+    st.subheader("Why Agentic RAG is used")
 
     st.write(
-        "RAG keeps the system grounded in collected evidence. Instead of allowing the LLM to answer "
-        "only from general knowledge, the system first retrieves relevant evidence from ChromaDB and "
-        "then generates a recommendation using that evidence."
+        "Agentic RAG keeps the system grounded in collected evidence while adding planning, "
+        "tool selection, validation, and memory. RAG retrieves relevant evidence from ChromaDB, "
+        "while the CEO Agent controls the workflow and decides whether the final recommendation "
+        "should be approved."
+    )
+
+    st.subheader("CEO Agent Workflow")
+
+    st.code(
+        "Goal → Plan → Tool Selection → Retrieve Evidence → Analyze Risks/Opportunities/Trends "
+        "→ Generate Recommendation → Validate → Save Memory → Dashboard",
+        language="text",
     )
 
     st.caption(
