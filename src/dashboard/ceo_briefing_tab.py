@@ -1,3 +1,5 @@
+import streamlit as st
+
 from src.dashboard.dashboard_utils import *
 from src.agent.ceo_agent import run_ceo_agent
 
@@ -16,9 +18,15 @@ def show_ceo_briefing():
         unsafe_allow_html=True,
     )
 
+    if "ceo_briefing_question" not in st.session_state:
+        st.session_state["ceo_briefing_question"] = ""
+
+    if "ceo_briefing_result" not in st.session_state:
+        st.session_state["ceo_briefing_result"] = None
+
     question = st.text_area(
         "CEO briefing question",
-        value="",
+        key="ceo_briefing_question",
         placeholder="Example: What should SAP leadership know about Business AI strategy?",
         height=120,
     )
@@ -32,101 +40,106 @@ def show_ceo_briefing():
     if run_button:
         if not question.strip():
             st.warning("Please enter a CEO briefing question.")
-            return
-
-        with st.spinner("Running CEO agent: planning, retrieving, analyzing, validating..."):
-            result = run_ceo_agent(question)
-
-        answer_text = result.get("answer", "")
-        formatted_answer = format_agent_answer_for_markdown(answer_text)
-        evidence_df = build_evidence_dataframe(result)
-
-        st.markdown("### Executive Briefing")
-
-        with st.container(border=True):
-            st.markdown(formatted_answer)
-
-        st.markdown("### Agent Plan")
-
-        agent_plan = result.get("agent_plan", {})
-
-        if agent_plan:
-            st.write(f"**Detected Goal Type:** {agent_plan.get('goal_type', 'N/A')}")
-
-            for step in agent_plan.get("steps", []):
-                st.write(f"- {step}")
         else:
-            st.info("No agent plan returned.")
+            with st.spinner("Running CEO agent: planning, retrieving, analyzing, validating..."):
+                st.session_state["ceo_briefing_result"] = run_ceo_agent(question)
 
-        st.markdown("### Tools Used")
+    result = st.session_state.get("ceo_briefing_result")
 
-        tools_used = result.get("tools_used", [])
+    if not result:
+        st.info("Enter a CEO briefing question and click Generate CEO Briefing.")
+        return
 
-        if tools_used:
-            for tool in tools_used:
-                st.write(f"- `{tool}`")
-        else:
-            st.info("No tools were recorded.")
+    answer_text = result.get("answer", "")
+    formatted_answer = format_agent_answer_for_markdown(answer_text)
+    evidence_df = build_evidence_dataframe(result)
 
-        st.markdown("### Agent Execution Trace")
+    st.markdown("### Executive Briefing")
 
-        execution_trace = result.get("execution_trace", [])
+    with st.container(border=True):
+        st.markdown(formatted_answer)
 
-        if execution_trace:
-            for item in execution_trace:
-                step = item.get("step", "Step")
-                details = item.get("details", "")
-                st.write(f"**{step}:** {details}")
-        else:
-            st.info("No execution trace returned.")
+    st.markdown("### Agent Plan")
 
-        st.markdown("### Agent Validation")
+    agent_plan = result.get("agent_plan", {})
 
-        validation = result.get("validation", {})
-        agent_decision = result.get("agent_decision", "")
+    if agent_plan:
+        st.write(f"**Detected Goal Type:** {agent_plan.get('goal_type', 'N/A')}")
 
-        if validation.get("passed"):
-            st.success("Validation passed. Briefing is supported by retrieved evidence.")
-        else:
-            st.error("Validation failed. Some checks need attention.")
+        for step in agent_plan.get("steps", []):
+            st.write(f"- {step}")
+    else:
+        st.info("No agent plan returned.")
 
-        if agent_decision:
-            st.info(f"Agent Decision: {agent_decision}")
+    st.markdown("### Tools Used")
 
-        checks = validation.get("checks", {})
+    tools_used = result.get("tools_used", [])
 
-        if checks:
-            st.json(checks)
+    if tools_used:
+        for tool in tools_used:
+            st.write(f"- `{tool}`")
+    else:
+        st.info("No tools were recorded.")
 
-        if not evidence_df.empty:
-            metric_col1, metric_col2, metric_col3 = st.columns(3)
+    st.markdown("### Agent Execution Trace")
 
-            with metric_col1:
-                st.metric("Evidence Items", len(evidence_df))
+    execution_trace = result.get("execution_trace", [])
 
-            with metric_col2:
-                if "Final Score" in evidence_df.columns:
-                    avg_score = evidence_df["Final Score"].mean()
-                    st.metric("Avg Retrieval Score", round(avg_score, 3))
-                else:
-                    st.metric("Avg Retrieval Score", "N/A")
+    if execution_trace:
+        for item in execution_trace:
+            step = item.get("step", "Step")
+            details = item.get("details", "")
+            st.write(f"**{step}:** {details}")
+    else:
+        st.info("No execution trace returned.")
 
-            with metric_col3:
-                if "Source Type" in evidence_df.columns:
-                    source_count = evidence_df["Source Type"].nunique()
-                    st.metric("Source Types", source_count)
-                else:
-                    st.metric("Source Types", "N/A")
+    st.markdown("### Agent Validation")
 
-        st.markdown("### Briefing Evidence")
+    validation = result.get("validation", {})
+    agent_decision = result.get("agent_decision", "")
 
-        if evidence_df.empty:
-            st.warning("No supporting evidence was returned.")
-        else:
-            st.dataframe(
-                evidence_df,
-                use_container_width=True,
-                height=320,
-            )
+    if validation.get("passed"):
+        st.success("Validation passed. Briefing is supported by retrieved evidence.")
+    else:
+        st.error("Validation failed. Some checks need attention.")
 
-        show_evidence_preview(result)
+    if agent_decision:
+        st.info(f"Agent Decision: {agent_decision}")
+
+    checks = validation.get("checks", {})
+
+    if checks:
+        st.json(checks)
+
+    if not evidence_df.empty:
+        metric_col1, metric_col2, metric_col3 = st.columns(3)
+
+        with metric_col1:
+            st.metric("Evidence Items", len(evidence_df))
+
+        with metric_col2:
+            if "Final Score" in evidence_df.columns:
+                avg_score = evidence_df["Final Score"].mean()
+                st.metric("Avg Retrieval Score", round(avg_score, 3))
+            else:
+                st.metric("Avg Retrieval Score", "N/A")
+
+        with metric_col3:
+            if "Source Type" in evidence_df.columns:
+                source_count = evidence_df["Source Type"].nunique()
+                st.metric("Source Types", source_count)
+            else:
+                st.metric("Source Types", "N/A")
+
+    st.markdown("### Briefing Evidence")
+
+    if evidence_df.empty:
+        st.warning("No supporting evidence was returned.")
+    else:
+        st.dataframe(
+            evidence_df,
+            use_container_width=True,
+            height=320,
+        )
+
+    show_evidence_preview(result)

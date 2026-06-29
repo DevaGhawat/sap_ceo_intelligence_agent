@@ -4,7 +4,7 @@
 
 This project is an NLP and Agentic Retrieval-Augmented Generation based Strategic Intelligence Agent for SAP.
 
-The system collects public SAP-related information, stores it in a knowledge repository, retrieves relevant evidence, and uses a CEO Agent to create evidence-based strategic recommendations. The main goal is not only to summarize documents, but to convert collected information into useful business insights supported by evidence.
+The system collects public SAP-related information, stores it in a structured knowledge repository, retrieves relevant evidence, and uses a CEO Agent to create evidence-based strategic recommendations. The main goal is not only to summarize documents, but to convert collected information into useful business insights supported by evidence.
 
 The system is designed to answer questions such as:
 
@@ -20,6 +20,7 @@ The system is designed to answer questions such as:
 ## Selected Company
 
 **Company:** SAP
+
 **Industry:** Enterprise software, cloud ERP, Business AI, analytics, enterprise automation, and digital transformation.
 
 Main focus areas:
@@ -81,10 +82,11 @@ flowchart TD
     H --> I["Plan and Tool Selection"]
     I --> J["Evidence Retrieval Tool"]
     J --> K["Risk, Opportunity, and Trend Analysis Tools"]
-    K --> L["RAG Recommendation Generation Tool"]
-    L --> M["Agent Validation"]
-    M --> N["Agent Memory"]
-    N --> O["Streamlit Dashboard"]
+    K --> L["Agent Decision"]
+    L --> M["RAG Recommendation Generation Tool"]
+    M --> N["Agent Validation"]
+    N --> O["Agent Memory"]
+    O --> P["Streamlit Dashboard"]
 ```
 
 ---
@@ -110,13 +112,14 @@ flowchart TD
     N --> O
     O --> P["16. Retrieved Evidence Chunks"]
     P --> Q["17. Risk, Opportunity, and Trend Analysis"]
-    Q --> R["18. RAG Generation Tool<br/>Qwen2.5:7B via Ollama"]
-    R --> S["19. Agent Validation"]
-    S --> T["20. Agent Memory"]
-    T --> U["21. Streamlit Dashboard"]
+    Q --> R["18. Agent Decision"]
+    R --> S["19. RAG Generation Tool<br/>Qwen2.5:7B via Ollama"]
+    S --> T["20. Agent Validation"]
+    T --> U["21. Agent Memory"]
+    U --> V["22. Streamlit Dashboard"]
 ```
 
-This data flow shows how public SAP-related information moves through the system. First, documents are collected and stored in SQLite. Then the text is cleaned, chunked, converted into embeddings, and indexed in ChromaDB. When a CEO-level question is asked, the CEO Agent creates a plan, selects tools, retrieves evidence, analyzes risk, opportunity, and trend signals, generates a recommendation using a local LLM, validates the output, stores the run in memory, and displays the full result in the Streamlit dashboard.
+This data flow shows how public SAP-related information moves through the system. First, documents are collected and stored in SQLite. Then the text is cleaned, chunked, converted into embeddings, and indexed in ChromaDB. When a CEO-level question is asked, the CEO Agent creates a plan, selects tools, retrieves evidence, analyzes risk, opportunity, and trend signals, makes an agent decision, generates a recommendation using a local LLM, validates the output, stores the run in memory, and displays the full result in the Streamlit dashboard.
 
 ---
 
@@ -205,6 +208,13 @@ This model creates **384-dimensional embeddings**. Each text chunk becomes a 384
 
 The vectors are stored in ChromaDB. ChromaDB is used for semantic search during evidence retrieval.
 
+SQLite and ChromaDB have different roles:
+
+| Component | Role                                                                      |
+| --------- | ------------------------------------------------------------------------- |
+| SQLite    | Stores documents, metadata, cleaned text, chunks, and quality information |
+| ChromaDB  | Stores vector embeddings and supports semantic retrieval                  |
+
 ---
 
 ### 6. Agentic Evidence Retrieval
@@ -221,6 +231,8 @@ The retrieved evidence is used by the agent for:
 * CEO-level recommendation generation
 * validation against evidence
 
+Retrieval is not the complete system. Retrieval is one tool inside the CEO Agent workflow.
+
 ---
 
 ### 7. CEO Agent Workflow
@@ -228,8 +240,28 @@ The retrieved evidence is used by the agent for:
 The CEO Agent follows this workflow:
 
 ```text
-Goal → Plan → Tool Selection → Retrieve → Analyze → Recommend → Validate → Memory
+Goal → Plan → Tool Selection → Retrieve → Analyze → Decide → Recommend → Validate → Memory
 ```
+
+The planner uses controlled goal-type detection. Based on the CEO-level question, it classifies the task into one of the following goal types:
+
+* `strategic_decision`
+* `risk_analysis`
+* `opportunity_analysis`
+* `trend_analysis`
+* `competitor_analysis`
+
+The core workflow remains fixed for reliability, but the selected analysis tools change based on the detected goal type.
+
+Example tool selection:
+
+| Goal Type              | Selected Analysis Tools                             |
+| ---------------------- | --------------------------------------------------- |
+| `strategic_decision`   | opportunity analysis, risk analysis, trend analysis |
+| `risk_analysis`        | risk analysis, trend analysis                       |
+| `opportunity_analysis` | opportunity analysis, trend analysis                |
+| `trend_analysis`       | trend analysis                                      |
+| `competitor_analysis`  | risk analysis, opportunity analysis                 |
 
 Agent files:
 
@@ -243,7 +275,25 @@ The agent is responsible for controlling the process. RAG is used as one tool in
 
 ---
 
-### 8. CEO Recommendation Generation
+### 8. Agent Tools
+
+The CEO Agent uses the following tools and tool-like workflow components:
+
+| Tool / Component               | Purpose                                                                      |
+| ------------------------------ | ---------------------------------------------------------------------------- |
+| `retrieve_evidence_tool`       | Retrieves relevant evidence chunks from ChromaDB                             |
+| `analyze_opportunities_tool`   | Analyzes retrieved evidence for opportunity and growth signals               |
+| `analyze_risks_tool`           | Analyzes retrieved evidence for risks, barriers, and challenges              |
+| `analyze_trends_tool`          | Analyzes retrieved evidence for technology, market, and enterprise AI trends |
+| `generate_recommendation_tool` | Generates an evidence-based CEO recommendation                               |
+| `validate_recommendation_tool` | Checks whether the output is complete and evidence-supported                 |
+| `save_agent_memory_tool`       | Saves the run history for traceability                                       |
+
+The system has one main agent: the CEO Agent. Planner, tools, validator, and memory are internal components used by this agent, not separate agents.
+
+---
+
+### 9. CEO Recommendation Generation
 
 The retrieved evidence is passed to a local LLM through Ollama.
 
@@ -255,11 +305,13 @@ Qwen2.5:7B
 
 The model is instructed to answer only using retrieved evidence. Each recommendation must include evidence IDs such as `chunk_6385`.
 
+The final recommendation is LLM-assisted, but it is evidence-grounded. The LLM is not used as the source of truth. The source of truth is the retrieved evidence from the SQLite repository and ChromaDB vector store.
+
 The system does not use OpenAI, Gemini, Claude, or any paid commercial LLM API as the main reasoning engine.
 
 ---
 
-### 9. Agent Validation
+### 10. Agent Validation
 
 After the recommendation is generated, the agent validates the output.
 
@@ -277,22 +329,72 @@ If validation passes, the dashboard marks the recommendation as approved by agen
 
 ---
 
+### 11. Agent Memory
+
+The memory component stores each CEO Agent run in:
+
+```text
+data/agent_memory.jsonl
+```
+
+Each memory record stores:
+
+* user goal
+* detected goal type
+* tools used
+* number of retrieved evidence items
+* validation result
+* presentation status
+* validation issues
+* answer preview
+* timestamp
+
+Memory is used for traceability and evaluation. It allows the system to show how the agent behaved across different strategic questions.
+
+Agent memory is stored separately from SQLite because it is execution history, not source document data.
+
+---
+
+## Dashboard
+
+The project includes a Streamlit dashboard for inspection, monitoring, and agent interaction.
+
+Main dashboard sections:
+
+| Tab                       | Purpose                                           |
+| ------------------------- | ------------------------------------------------- |
+| Company Overview          | Shows repository and source-level overview        |
+| Market Intelligence       | Shows collected market and business signals       |
+| Risk Monitor              | Shows risk-related repository signals             |
+| Opportunity Monitor       | Shows opportunity-related repository signals      |
+| Sentiment Analysis        | Shows article tone using VADER sentiment analysis |
+| Strategic Recommendations | Runs the CEO Agent for strategic questions        |
+| CEO Briefing              | Runs the CEO Agent for executive-level briefings  |
+| Project Pipeline          | Explains the complete architecture and workflow   |
+
+The Risk Monitor and Opportunity Monitor tabs are supporting analytics views. They are built from the collected SQLite document repository and use interpretable metadata, category, and keyword-based filtering to surface risk and opportunity signals. These tabs are not the main agent.
+
+The main agentic workflow is demonstrated in the Strategic Recommendations and CEO Briefing tabs. These tabs show the agent plan, selected tools, execution trace, validation result, agent decision, supporting evidence, and memory update.
+
+---
+
 ## Design Decisions
 
-| Design Decision                            | Reason                                                                                                                 |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
-| SAP was selected as the company            | SAP has strong public information around Business AI, cloud ERP, Joule, SAP BTP, and enterprise transformation.        |
-| SQLite was used as the document repository | It is lightweight, local, easy to inspect, and suitable for an academic prototype.                                     |
-| ChromaDB was used as the vector store      | It supports persistent local semantic search and works well with sentence embeddings.                                  |
-| all-MiniLM-L6-v2 was used for embeddings   | It is lightweight, fast, free, and suitable for local semantic retrieval.                                              |
-| Recursive character chunking was used      | It keeps chunks manageable while preserving useful context through overlap.                                            |
-| Agentic RAG was used instead of only RAG   | The agent adds planning, tool selection, analysis, validation, and memory on top of evidence retrieval and generation. |
-| Qwen2.5:7B through Ollama was used         | It is a freely accessible local LLM and produced more reliable structured recommendations than the smaller model.      |
-| Streamlit was used for the dashboard       | It is simple to build, easy to demonstrate, and suitable for an interactive academic prototype.                        |
-| VADER was used for sentiment analysis      | It provides a simple rule-based sentiment baseline for article and content tone.                                       |
-| Evidence IDs were included in the output   | They make the recommendation explainable and allow claims to be traced back to retrieved chunks.                       |
-| Agent validation was added                 | It prevents unsupported or incomplete recommendations from being approved automatically.                               |
-| SQLite and ChromaDB were both used         | SQLite handles structured document storage, while ChromaDB handles semantic vector retrieval.                          |
+| Design Decision                            | Reason                                                                                                            |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| SAP was selected as the company            | SAP has strong public information around Business AI, cloud ERP, Joule, SAP BTP, and enterprise transformation.   |
+| SQLite was used as the document repository | It is lightweight, local, easy to inspect, and suitable for an academic prototype.                                |
+| ChromaDB was used as the vector store      | It supports persistent local semantic search and works well with sentence embeddings.                             |
+| all-MiniLM-L6-v2 was used for embeddings   | It is lightweight, fast, free, and suitable for local semantic retrieval.                                         |
+| Recursive character chunking was used      | It keeps chunks manageable while preserving useful context through overlap.                                       |
+| Agentic RAG was used instead of only RAG   | The agent adds planning, tool selection, decision-making, analysis, validation, and memory on top of retrieval.   |
+| Qwen2.5:7B through Ollama was used         | It is a freely accessible local LLM and produced more reliable structured recommendations than the smaller model. |
+| Streamlit was used for the dashboard       | It is simple to build, easy to demonstrate, and suitable for an interactive academic prototype.                   |
+| VADER was used for sentiment analysis      | It provides a simple rule-based sentiment baseline for article and content tone.                                  |
+| Evidence IDs were included in the output   | They make the recommendation explainable and allow claims to be traced back to retrieved chunks.                  |
+| Agent validation was added                 | It prevents unsupported or incomplete recommendations from being approved automatically.                          |
+| SQLite and ChromaDB were both used         | SQLite handles structured document storage, while ChromaDB handles semantic vector retrieval.                     |
+| Custom Python agent logic was used         | It makes the agent workflow transparent, inspectable, and easy to debug for an academic prototype.                |
 
 ---
 
@@ -449,6 +551,7 @@ python -m streamlit run app.py --server.fileWatcherType none
 
 ---
 
+
 ## Evidence Control
 
 The system includes prompt-level and agent-level controls to reduce hallucination:
@@ -472,7 +575,8 @@ This is an academic prototype, so it has some limitations:
 * Public web sources may change over time.
 * SAP official sources may naturally present SAP positively.
 * Sentiment analysis shows article tone, not direct customer opinion.
-* Risk and opportunity labels are based on heuristic logic.
+* Risk and opportunity labels in monitoring tabs are based on heuristic logic.
+* Goal-type detection is controlled and rule-based for this prototype.
 * Local LLM generation is slower than paid cloud APIs.
 * The system supports strategic analysis, but it is not a financial forecasting model.
 * Generated recommendations still need human review before real business use.
@@ -486,14 +590,16 @@ Possible improvements:
 * add more external competitor sources
 * add hybrid retrieval using BM25 and embeddings
 * improve risk classification using a trained model
+* improve goal-type detection with a trained classifier
 * add source freshness weighting
 * add PDF export for CEO briefings
 * evaluate recommendations against human-labelled strategic relevance
+* represent the same workflow using LangGraph nodes in a future version
 
 ---
 
 ## Final Summary
 
-This project demonstrates a complete NLP and Agentic RAG-based Strategic Intelligence Agent for SAP. It collects public information, stores it in a structured repository, processes and embeds the text, retrieves relevant evidence, and uses a CEO Agent to plan the task, select tools, analyze strategic signals, generate CEO-level recommendations, validate them against evidence, and store the run in memory.
+This project demonstrates a complete NLP and Agentic RAG-based Strategic Intelligence Agent for SAP. It collects public information, stores it in a structured repository, processes and embeds the text, retrieves relevant evidence, and uses a CEO Agent to plan the task, select tools, analyze strategic signals, decide the appropriate response path, generate CEO-level recommendations, validate them against evidence, and store the run in memory.
 
 The final system is evidence-based, explainable, and aligned with the goal of transforming information into strategic decisions.
